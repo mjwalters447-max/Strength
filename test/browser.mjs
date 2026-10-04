@@ -1,0 +1,82 @@
+// Optional real-browser acceptance checks. Supply an installed Playwright module path;
+// this script never downloads dependencies or browsers.
+import assert from 'node:assert/strict';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const [modulePath, accessFile, outputDir] = process.argv.slice(2);
+if (!modulePath || !accessFile || !outputDir) throw new Error('Usage: node test/browser.mjs PLAYWRIGHT_MODULE ACCESS_FILE OUTPUT_DIR');
+const { chromium } = await import(pathToFileURL(resolve(modulePath)).href);
+const access = JSON.parse(await readFile(accessFile, 'utf8'));
+await mkdir(outputDir, { recursive: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.STRENGTH_BROWSER_PATH ? { executablePath: process.env.STRENGTH_BROWSER_PATH } : {}) });
+const errors = [], failures = [], evidence = [];
+try {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('requestfailed', request => failures.push(request.url()));
+  await page.goto(access.url);
+  await page.locator('#password').fill(access.password);
+  await Promise.all([page.waitForURL(access.url + '/'), page.getByRole('button', { name: 'Open workspace' }).click()]);
+  await page.locator('#price-chart').waitFor();
+  assert.match(await page.locator('#notice').innerText(), /fictional/);
+  assert.equal(await page.locator('.instrument-row').count(), 6);
+  await page.screenshot({ path: resolve(outputDir, 'desktop.png'), fullPage: true });
+  evidence.push('Successful real-browser password sign-in and six instruments rendered');
+  await page.locator('#search').fill('health');
+  assert.equal(await page.locator('.instrument-row').count(), 1);
+  await page.locator('.instrument-row').click();
+  assert.equal(await page.locator('.detail-name').innerText(), 'LUMA');
+  assert.match(await page.locator('.score-card').first().innerText(), /Insufficient/);
+  await page.locator('#search').fill('no-matching-security');
+  assert.match(await page.locator('#instrument-list').innerText(), /No matching/);
+  await page.locator('#search').fill('');
+  await page.locator('[data-symbol="NOVA"]').click();
+  await page.getByRole('button', { name: '20 sessions', exact: true }).click();
+  await page.getByRole('tab', { name: 'Evidence', exact: true }).click();
+  assert.match(await page.locator('#detail-pane').innerText(), /20-session assessment/);
+  assert.equal(await page.locator('.factor').count(), 10);
+  await page.getByRole('tab', { name: 'Catalysts', exact: true }).click();
+  assert.match(await page.locator('#detail-pane').innerText(), /Illustrative events/);
+  await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+  await page.getByRole('button', { name: '1M', exact: true }).click();
+  assert.match(await page.locator('.chart-status').innerText(), /21 available bars/);
+  await page.locator('#price-chart').focus();
+  const before = await page.locator('#chart-readout').innerText(); await page.keyboard.press('ArrowLeft');
+  assert.notEqual(await page.locator('#chart-readout').innerText(), before);
+  await page.locator('.sidebar [data-nav="method"]').click();
+  assert.equal(await page.locator('#method-panel').isVisible(), true);
+  assert.equal(await page.locator('#research-panel').isVisible(), false);
+  await page.locator('.sidebar [data-nav="overview"]').click();
+  evidence.push('Search, empty state, selection, missing evidence, horizons, all tabs, chart range, keyboard inspection and methodology navigation');
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const dims = await page.evaluate(() => ({ inner: innerWidth, scroll: document.documentElement.scrollWidth }));
+    if (dims.scroll > dims.inner) {
+      console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.right > innerWidth + 1 && !e.closest('.instrument-list'); }).map(e => ({ tag: e.tagName, class: e.className.baseVal ?? e.className, width: e.getBoundingClientRect().width, right: e.getBoundingClientRect().right })).slice(0, 15)));
+      await page.screenshot({ path: resolve(outputDir, 'overflow.png'), fullPage: true });
+    }
+    assert.ok(dims.scroll <= dims.inner, `Page overflows at ${width}: ${dims.scroll}`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '10 sessions', exact: true }).click();
+  await page.getByRole('button', { name: '3M', exact: true }).click();
+  await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+  await page.screenshot({ path: resolve(outputDir, 'mobile.png'), fullPage: true });
+  await page.screenshot({ path: resolve(outputDir, 'mobile-overview.png') });
+  await page.locator('#detail').scrollIntoViewIfNeeded();
+  await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, document.querySelector('#detail').getBoundingClientRect().top + scrollY - 12); });
+  await page.screenshot({ path: resolve(outputDir, 'mobile-research.png') });
+  await page.locator('.mobile-nav [data-nav="method"]').click();
+  assert.equal(await page.locator('#method-panel').isVisible(), true);
+  await page.locator('.mobile-nav [data-nav="overview"]').click();
+  evidence.push('No page overflow at 320, 390, 768, 1024 and 1440 pixels; mobile navigation verified');
+  await page.locator('#mobile-logout').click(); await page.locator('#password').waitFor();
+  assert.equal((await context.request.get(access.url + '/api/snapshot')).status(), 401);
+  evidence.push('Browser logout revokes access to snapshot API');
+  assert.deepEqual(errors, []); assert.deepEqual(failures, []);
+  await writeFile(resolve(outputDir, 'browser-results.json'), JSON.stringify({ status: 'PASS', evidence, errors, failures }, null, 2));
+  console.log(JSON.stringify({ status: 'PASS', evidence, errors, failures }, null, 2));
+} finally { await browser.close(); }

@@ -218,3 +218,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Strength: keep runtime inputs, credentials and generated artifacts local
+.env.*
+*.private.json
+*.local.json
+node_modules/
+data/
+coverage/
+test-results/
+playwright-report/
+
+# Application modules are source, not Python build output.
+!/lib/
+!/lib/*.mjs
+
