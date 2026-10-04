@@ -6,6 +6,10 @@ import { join, resolve, sep } from 'node:path';
 import http from 'node:http';
 import { createStrengthServer } from '../server.mjs';
 import { demoSnapshot } from '../lib/demo.mjs';
+import { marketInput } from './market-fixture.mjs';
+import { importMarket } from '../lib/import-market.mjs';
+import { packSnapshot } from '../lib/snapshot-codec.mjs';
+import { gzipSync } from 'node:zlib';
 
 const password = 'Synthetic-test-password-2026!';
 async function fixture(options = {}) {
@@ -29,6 +33,49 @@ test('password is required and production requires HTTPS', async () => {
   await assert.rejects(createStrengthServer(), /password/i);
   await assert.rejects(createStrengthServer({ password, production: true }), /HTTPS/);
   await assert.rejects(createStrengthServer({ password, origin: 'http://example.com' }), /loopback/);
+});
+
+test('required private source cannot be removed or shadowed by a competing source', async () => {
+  await assert.rejects(createStrengthServer({ password, requireSource: true }), /required/);
+  await assert.rejects(createStrengthServer({ password, snapshotPath: 'external.json', snapshotB64: '' }), /exactly one/);
+});
+
+test('private market snapshot survives server recreation without carrying login sessions', async () => {
+  const snapshot = importMarket(marketInput(), Date.parse('2026-10-04T12:00:00Z'));
+  const snapshotB64 = packSnapshot(snapshot, Date.parse('2026-10-04T12:00:00Z'));
+  let formerCookie;
+  for (let cycle = 0; cycle < 2; cycle++) {
+    const f = await fixture({ snapshotB64, requireSource: true });
+    try {
+      assert.equal((await f.call('/api/snapshot')).status, 401);
+      if (formerCookie) assert.equal((await f.call('/api/snapshot', { headers: { Cookie: formerCookie } })).status, 401);
+      const cookie = (await f.post('/api/login', { password })).headers.get('set-cookie').split(';')[0];
+      const r = await f.call('/api/snapshot', { headers: { Cookie: cookie } });
+      assert.equal(r.status, 200); const view = await r.json();
+      assert.equal(view.mode, 'market'); assert.equal(view.instruments[0].bars.at(-1).close, 170);
+      assert.equal(view.instruments[0].scores[0].buy, null);
+      assert.equal(view.source.capturedAt, snapshot.source.capturedAt);
+      formerCookie = cookie;
+    } finally { await f.close(); }
+  }
+});
+
+test('invalid private packages fail closed at the authenticated API on repeated cycles', async () => {
+  const time = Date.parse('2026-10-04T12:00:00Z');
+  const snapshot = importMarket(marketInput(), time), good = packSnapshot(snapshot, time);
+  const badField = { ...snapshot, balance: 1 };
+  const encode = data => gzipSync(JSON.stringify(data)).toString('base64');
+  for (const invalid of ['', 'broken', encode(demoSnapshot()), encode(badField)]) {
+    for (const [snapshotB64, expected] of [[invalid, 503], [good, 200]]) {
+      const f = await fixture({ snapshotB64, requireSource: true });
+      try {
+        const cookie = (await f.post('/api/login', { password })).headers.get('set-cookie').split(';')[0];
+        const r = await f.call('/api/snapshot', { headers: { Cookie: cookie } });
+        assert.equal(r.status, expected);
+        if (expected === 503) assert.doesNotMatch(await r.text(), /NOVA|SPY|balance/);
+      } finally { await f.close(); }
+    }
+  }
 });
 test('unauthenticated user can see only the sign-in page and public assets', async t => {
   const f = await fixture(); t.after(f.close);

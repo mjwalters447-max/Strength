@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { demoSnapshot } from './lib/demo.mjs';
 import { presentSnapshot } from './lib/model.mjs';
+import { unpackSnapshot } from './lib/snapshot-codec.mjs';
 
 const scrypt = promisify(scryptCallback);
 const root = dirname(fileURLToPath(import.meta.url));
@@ -16,7 +17,10 @@ const assets = new Map([
 ]);
 const digest = token => createHash('sha256').update(token).digest('hex');
 
-export async function createStrengthServer({ password, origin = 'http://127.0.0.1:4173', snapshotPath, clock = Date.now, sessionMs = 8 * 3600000, production = false } = {}) {
+export async function createStrengthServer({ password, origin = 'http://127.0.0.1:4173', snapshotPath, snapshotB64, requireSource = false, clock = Date.now, sessionMs = 8 * 3600000, production = false } = {}) {
+  const packedConfigured = snapshotB64 !== undefined;
+  if (snapshotPath && packedConfigured) throw new Error('Configure exactly one snapshot source.');
+  if (requireSource && !snapshotPath && !packedConfigured) throw new Error('A real snapshot source is required.');
   if (typeof password !== 'string' || password.length < 16 || Buffer.byteLength(password) > 1024) throw new Error('Set a unique STRENGTH_PASSWORD of at least 16 characters.');
   const canonical = new URL(origin);
   if (canonical.origin !== origin || canonical.username || canonical.password) throw new Error('STRENGTH_ORIGIN must be an exact origin.');
@@ -96,8 +100,9 @@ export async function createStrengthServer({ password, origin = 'http://127.0.0.
           if (snapshotPath) {
             if ((await stat(snapshotPath)).size > 2000000) throw new Error('Oversized input');
             snapshot = JSON.parse(await readFile(snapshotPath, 'utf8'));
-            if (snapshot.mode !== 'research') throw new Error('Configured source must be research');
-          } else snapshot = demoSnapshot();
+          } else if (packedConfigured) snapshot = unpackSnapshot(snapshotB64);
+          else snapshot = demoSnapshot();
+          if ((snapshotPath || packedConfigured) && !['research', 'market'].includes(snapshot.mode)) throw new Error('Configured source must be real');
           return send(200, presentSnapshot(snapshot, now));
         } catch { return send(503, { error: 'Research is unavailable or failed validation. No replacement data has been substituted.' }); }
       }
@@ -118,9 +123,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT.');
     const production = process.env.NODE_ENV === 'production';
     const origin = process.env.STRENGTH_ORIGIN ?? `http://127.0.0.1:${port}`;
-    const server = await createStrengthServer({ password: process.env.STRENGTH_PASSWORD, origin, snapshotPath: process.env.STRENGTH_SNAPSHOT_PATH, production });
+    const requireSource = process.env.STRENGTH_REQUIRE_SOURCE;
+    if (requireSource !== undefined && !['0', '1'].includes(requireSource)) throw new Error('STRENGTH_REQUIRE_SOURCE must be 0 or 1.');
+    const server = await createStrengthServer({ password: process.env.STRENGTH_PASSWORD, origin, snapshotPath: process.env.STRENGTH_SNAPSHOT_PATH, snapshotB64: process.env.STRENGTH_SNAPSHOT_B64, requireSource: requireSource === '1', production });
     const host = process.env.STRENGTH_HOST ?? '127.0.0.1';
     if (!production && !['127.0.0.1', '::1'].includes(host)) throw new Error('Development must bind to loopback.');
-    server.listen(port, host, () => console.log(`Strength ready at ${origin}. ${process.env.STRENGTH_SNAPSHOT_PATH ? 'Research snapshots configured.' : 'Synthetic demonstration only.'}`));
+    server.listen(port, host, () => console.log(`Strength ready at ${origin}. ${process.env.STRENGTH_SNAPSHOT_PATH || process.env.STRENGTH_SNAPSHOT_B64 !== undefined ? 'Dated source configured.' : 'Synthetic demonstration only.'}`));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }

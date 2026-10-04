@@ -301,3 +301,9 @@ footer{flex-direction:column;gap:6px}
 }
 
 @media(max-width:780px){.search input{font-size:16px;min-width:0}.radar-controls select{font-size:14px}.segmented button{min-height:32px}.tabs button{min-height:44px}.icon-button{width:40px;height:40px}.score-copy,.score-foot{line-height:1.7}.source-card p{font-size:11px}#password{font-size:16px}}
+/* Dated market observations never use the evidence-grade scale. */
+.bar-changes{display:flex;flex-direction:column;align-items:flex-end;font-size:12px;font-variant-numeric:tabular-nums;gap:5px;flex-shrink:0}
+.observation-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+.observation{display:flex;flex-direction:column;gap:8px;background:#20271f;border:1px solid #354030;border-radius:12px;padding:14px}
+.observation span{font-size:12px;color:#a6b09e;line-height:1.5}
+.observation strong{font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}

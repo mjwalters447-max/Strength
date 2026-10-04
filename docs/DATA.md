@@ -1,5 +1,7 @@
 # Market-only snapshot contract
 
+This page describes authored research schema 1. The independent daily-price schema 2 is documented in [CONNECTION.md](CONNECTION.md) and validated by `lib/market.mjs`. Schema 2 cannot carry grades or narratives; it does not repurpose a market chart as a research assessment.
+
 `lib/model.mjs::validateSnapshot` owns the exact contract. Unknown keys are rejected at every accepted nested object. This is validation of a market-only document, not an anonymizer for private documents.
 
 | Object | Required fields |

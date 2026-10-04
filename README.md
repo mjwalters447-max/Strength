@@ -4,7 +4,9 @@ A private, mobile-friendly market research viewer. Price and volume charts, sect
 
 ## Current status
 
-Working local prototype with server-enforced password authentication. The default workspace is **entirely synthetic**: fictional issuers, prices, events, and research. No live data provider, task reader, scheduled publisher, or hosted deployment is connected. The experimental grading rubric is not an adopted investment strategy or a proven prediction model.
+Password-protected viewer with a separate market-data import path. A configured market snapshot displays real, dated daily bars for a fixed reference universe, plus descriptive price/volume measurements. Buy/sell grades and thesis labels stay unavailable because no review assessments are connected. Updates are on request, not a live stream or a scheduled review task. See [the independent connection contract](docs/CONNECTION.md).
+
+Without a configured source, the local preview is **entirely synthetic**. Production should set `STRENGTH_REQUIRE_SOURCE=1` after connecting real data. The experimental numerical rubric remains a prototype, not an adopted investment strategy or a proven prediction model.
 
 Node.js 22 or later is required. There are no runtime packages to install, no build step, no external fonts, no analytics, and no external scripts. An existing Node 24 runtime was used for verification.
 
@@ -32,12 +34,14 @@ Render Free is the selected first host. See [deployment settings](docs/RENDER.md
 | `STRENGTH_HOST` | Default `127.0.0.1`; set `0.0.0.0` only inside a host-controlled private network |
 | `PORT` | Internal HTTP listening port; default 4173 |
 | `STRENGTH_SNAPSHOT_PATH` | Optional absolute path to an approved research snapshot outside this source tree |
+| `STRENGTH_SNAPSHOT_B64` | Alternative bounded gzip/base64 snapshot in private host configuration; never commit this value |
+| `STRENGTH_REQUIRE_SOURCE` | `1` requires a configured source and prevents fallback to the demo after configuration loss |
 
 The reverse proxy must preserve the configured Host, terminate TLS, and prevent direct public access to the HTTP backend. Verify that boundary after choosing hosting. Production configuration alone does not establish deployment security. Use one application instance: session and rate-limit state are in memory. Process restarts revoke sessions and reset throttles. A hosting gateway can provide an additional authentication boundary. No open signup, password-reset flow, or multi-user access is implemented.
 
 ## Research data
 
-The server validates a configured file on every snapshot request. The browser refreshes that snapshot once per minute while visible and on demand. It does **not** fetch new market research. A future producer must publish approved snapshots atomically; no producer has been installed or scheduled.
+The server validates a configured file or packed snapshot on every snapshot request. Exactly one source may be configured. The browser refreshes that snapshot once per minute while visible and on demand. It does **not** fetch new market research. `scripts/prepare-market.mjs` validates and packages a separately retrieved typed market-history input; it cannot read an account or a review task, and it makes no network calls. Publishing the package is a separate host configuration update. No producer has been scheduled.
 
 ```sh
 node scripts/validate.mjs /absolute/path/to/research.json
@@ -45,7 +49,7 @@ node scripts/validate.mjs /absolute/path/to/research.json
 
 See [the data contract](docs/DATA.md) and [methodology](docs/METHODOLOGY.md). The executable validator in `lib/model.mjs` is the canonical structural contract. `lib/demo.mjs` creates a complete fictional example. Do not relabel that example as real research.
 
-When `STRENGTH_SNAPSHOT_PATH` is configured, invalid, missing, or incomplete files fail closed. The service never substitutes demo data for failed research. Source snapshots remain outside the repository. No personal review text should enter the producer; start with separately authored, market-only research. Source usage labels are declarations and do not independently prove permission or accuracy.
+When a source is configured, invalid, missing, or incomplete data fail closed. The service never substitutes demo data for failed research. Source snapshots remain outside the repository. No personal review text should enter the producer. Market schema 2 accepts no arbitrary narrative, account fields, supplied scores, or private source links. Schema 1 supports separately authored research; its source usage labels are declarations and do not independently prove permission or accuracy.
 
 ## Verification
 

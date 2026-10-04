@@ -1,4 +1,16 @@
-# Local prototype verification
+# Verification record
+
+## Market connection candidate — 2026-10-04 ET
+
+The market import adds only Strength code, documentation and synthetic tests. The existing private policy companion was independently reread and its branch HEAD remained unchanged. No review task, project instruction, plan, account connection, watchlist or schedule was edited. The runtime has no outbound provider or review API client. Only regular daily market history was read for the independent reference universe; imported prices and the packed configuration remain outside GitHub.
+
+Fresh Node 24.19.0 suite: **31 tests passed**, including all 19 prior tests. Added coverage verifies typed source rejection, unavailable grades, independent measurement arithmetic, exact history-length boundaries, permutation invariance, split-scale invariance, missing/zero data, gap-fill validation before exclusion, unknown fields through every new nested envelope, bounded decompression, contradictory configuration, unauthenticated rejection, source preservation across server recreation and repeated invalid-source recovery. Syntax checks passed for server and browser entry points.
+
+Local browser checks passed at 320, 390, 768 and 1440 widths with no document overflow. The new view was inspected with actual imported history; search/no-results, symbol selection, change sorting, chart range, keyboard bar inspection, methodology, and blank grades were exercised. Browser logs contained no warnings or errors. The first UI-edit command encountered a Python syntax error before any file was written; it was corrected before these checks.
+
+Market mode displays dated, split-adjusted daily-bar values and price-only measurements. It provides no thesis, grade, forecast, current-price promise or calendar certification. Production deployment/readback is a separate acceptance step and must not be inferred from this candidate record.
+
+## Original synthetic prototype — historical record
 
 Date: 2026-10-04 (Eastern time).
 

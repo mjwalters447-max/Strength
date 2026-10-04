@@ -1,6 +1,6 @@
 # Render Free deployment
 
-Deploy one Node web service from this repository's `main` branch. This first deployment uses only the built-in fictional demonstration. No research feed, database, disk, worker, scheduled job, or paid resource is required.
+Deploy one Node web service from this repository's `main` branch. The original deployment used fictional data. Real market imports now use the [independent connection](CONNECTION.md). No database, disk, worker, scheduled job, or paid resource is required.
 
 ## Settings
 
@@ -25,6 +25,8 @@ Deploy one Node web service from this repository's `main` branch. This first dep
 | `STRENGTH_HOST` | `0.0.0.0` |
 | `SKIP_INSTALL_DEPS` | `true` (no dependencies to install) |
 | `STRENGTH_PASSWORD` | A new random password, at least 16 characters, entered only in Render's secret environment settings |
+| `STRENGTH_SNAPSHOT_B64` | Private packaged market snapshot; leave absent only for a deliberate synthetic preview |
+| `STRENGTH_REQUIRE_SOURCE` | Set `1` when real data are connected |
 
 Use Render's supplied `PORT`. The start command assigns the exact canonical origin from Render's documented `RENDER_EXTERNAL_URL`; it does not guess the assigned hostname. Leave `STRENGTH_SNAPSHOT_PATH` unset for the synthetic preview. Do not reuse the local preview password or test fixture password. Missing or incorrect configuration must not be bypassed by disabling production mode or Host checks. A custom domain would require explicitly updating the canonical origin.
 
