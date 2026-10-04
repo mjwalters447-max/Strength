@@ -11,7 +11,7 @@ Deploy one Node web service from this repository's `main` branch. This first dep
 | Instance plan | Free |
 | Root directory | Repository root (leave blank) |
 | Build command | `node --test test/*.test.mjs` |
-| Start command | `node server.mjs` |
+| Start command | `STRENGTH_ORIGIN="$RENDER_EXTERNAL_URL" node server.mjs` |
 | Health check path | `/` |
 | Auto-deploy | Off; manual deployments |
 | Instances | One |
@@ -23,10 +23,10 @@ Deploy one Node web service from this repository's `main` branch. This first dep
 | `NODE_VERSION` | `24.19.0` (locally verified version) |
 | `NODE_ENV` | `production` |
 | `STRENGTH_HOST` | `0.0.0.0` |
-| `STRENGTH_ORIGIN` | Exact assigned `https://...onrender.com` origin, without a trailing slash |
+| `SKIP_INSTALL_DEPS` | `true` (no dependencies to install) |
 | `STRENGTH_PASSWORD` | A new random password, at least 16 characters, entered only in Render's secret environment settings |
 
-Use Render's supplied `PORT`. Leave `STRENGTH_SNAPSHOT_PATH` unset for the synthetic preview. Do not reuse the local preview password or test fixture password. The origin is not a secret; confirm the actual assigned URL rather than guessing it. If the URL is available only after service creation, set the origin and redeploy before treating the site as ready. Missing or incorrect configuration must not be bypassed by disabling production mode or Host checks.
+Use Render's supplied `PORT`. The start command assigns the exact canonical origin from Render's documented `RENDER_EXTERNAL_URL`; it does not guess the assigned hostname. Leave `STRENGTH_SNAPSHOT_PATH` unset for the synthetic preview. Do not reuse the local preview password or test fixture password. Missing or incorrect configuration must not be bypassed by disabling production mode or Host checks. A custom domain would require explicitly updating the canonical origin.
 
 Render terminates HTTPS and redirects HTTP at its edge. The application port is not directly public. Its health probe uses the assigned hostname when no custom domain exists, matching the strict Host validation. No custom domain is needed.
 
